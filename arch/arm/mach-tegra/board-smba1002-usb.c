@@ -69,6 +69,7 @@ hub-less systems.
 #include <linux/usb/composite.h>
 #include <linux/usb/gadget.h>
 #include <linux/usb/f_accessory.h>
+#include <linux/fsl_devices.h>
 
 #include "board.h"
 #include "board-smba1002.h"
@@ -76,11 +77,11 @@ hub-less systems.
 #include "gpio-names.h"
 #include "devices.h"
 
-#ifdef CONFIG_USB_SUPPORT
+//#ifdef CONFIG_USB_SUPPORT
 
 static struct tegra_utmip_config utmi_phy_config[] = {
 	[0] = {
-		.hssync_start_delay = 0,
+		.hssync_start_delay 	= 0,
 		.idle_wait_delay 	= 17,
 		.elastic_limit 		= 16,
 		.term_range_adj 	= 6, 	/*  xcvr_setup = 9 with term_range_adj = 6 gives the maximum guard around */
@@ -90,7 +91,7 @@ static struct tegra_utmip_config utmi_phy_config[] = {
 		.xcvr_lsrslew 		= 2,	/*                                                                        */
 	},
 	[1] = {
-		.hssync_start_delay = 0,
+		.hssync_start_delay 	= 0,
 		.idle_wait_delay 	= 17,
 		.elastic_limit 		= 16,
 		.term_range_adj 	= 6,	/*  -> xcvr_setup = 9 with term_range_adj = 6 gives the maximum guard around */
@@ -101,234 +102,69 @@ static struct tegra_utmip_config utmi_phy_config[] = {
 	},
 };
 
+static struct tegra_ulpi_config ulpi_phy_config = {
+        .reset_gpio = SMBA1002_USB1_RESET,
+        .clk = "cdev2",
+};
+
+static struct usb_phy_plat_data tegra_usb_phy_pdata[] = {
+        [0] = {
+                        .instance = 0,
+//                      .vbus_irq = TPS6586X_INT_BASE + TPS6586X_INT_USB_DET,
+//                        .vbus_gpio = SMBA1002_USB0_VBUS,
+//                        .vbus_irq = -1
+        },
+        [1] = {
+                        .instance = 1,
+                        .vbus_gpio = -1,
+        },
+        [2] = {
+                        .instance = 2,
+//                        .vbus_gpio = SMBA1002_USB2_VBUS,
+                        .vbus_gpio = -1,
+        },
+};
+
 static struct tegra_ehci_platform_data tegra_ehci_pdata[] = {
-	[0] = {
-		.phy_config = &utmi_phy_config[0],
-		.operating_mode = TEGRA_USB_OTG, /* DEVICE is slave here / HOST*/
-		.power_down_on_bus_suspend = 0,
-	},
-	[1] = {
-		.phy_config = &utmi_phy_config[1],
-		.operating_mode = TEGRA_USB_HOST,
-		.power_down_on_bus_suspend = 0,
-		//.hotplug = 0,
-	},
+        [0] = {
+                        .phy_config = &utmi_phy_config[0],
+                        .operating_mode = TEGRA_USB_OTG,
+                        .power_down_on_bus_suspend = 1,
+                        .default_enable = true,
+        },
+        [1] = {
+                        .phy_config = &utmi_phy_config[1],
+                        .operating_mode = TEGRA_USB_HOST,
+                        .power_down_on_bus_suspend = 0,
+                        .default_enable = true,
+        },
 };
 
-struct platform_device *usb_host_pdev = NULL;
-static struct platform_device * tegra_usb_otg_host_register(void)
-{
-	int val;
-	struct platform_device *pdev = NULL;
-	void *platform_data;
-
-	pr_info("%s: enabling USB host mode\n", __func__);	
-	
-	/* Enable VBUS - This means we can power USB devices, but
-	   we cant use VBUS detection at all */
-	//gpio_direction_input(SMBA1002_USB0_VBUS);
-
-	/* Leave some time for stabilization purposes */
-	msleep(10);
-	
-	/* And register the USB host device */
-	pdev = platform_device_alloc(tegra_ehci1_device.name,
-			tegra_ehci1_device.id);
-	if (!pdev)
-		goto err_2;
-
-	val = platform_device_add_resources(pdev, tegra_ehci1_device.resource,
-		tegra_ehci1_device.num_resources);
-	if (val)
-		goto error;
-
-	pdev->dev.dma_mask =  tegra_ehci1_device.dev.dma_mask;
-	pdev->dev.coherent_dma_mask = tegra_ehci1_device.dev.coherent_dma_mask;
-	
-	platform_data = kmalloc(sizeof(struct tegra_ehci_platform_data), GFP_KERNEL);
-	if (!platform_data)
-		goto error;
-
-	memcpy(platform_data, tegra_ehci1_device.dev.platform_data,
-				sizeof(struct tegra_ehci_platform_data));
-	pdev->dev.platform_data = platform_data;
- 	
-	val = platform_device_add(pdev);
-	if (val)
-		goto error_add;
-
-	usb_host_pdev = pdev;
-	return pdev;
-
-error_add:
-	kfree(platform_data);
-error:
-	platform_device_put(pdev);
-err_2:
-	pr_err("%s: failed to add the host controller device\n", __func__);	
-	return NULL;
-}
-
-static void tegra_usb_otg_host_unregister(struct platform_device *pdev)
-{
-	pr_info("%s: disabling USB host mode\n", __func__);	
-
-	/* Disable VBUS power. This means that if a USB host
-	   is plugged into the Tegra USB port, then we will 
-	   detect the power it supplies and go into gadget 
-	   mode */
-	//gpio_direction_output(SMBA1002_USB0_VBUS, 0); 
-
-	/* Leave some time for stabilization purposes - This 
-	   should unregister all attached devices, as they
-	   all lost power */
-	msleep(500);
-
-	/* Unregister the host adapter */
-	kfree(pdev->dev.platform_data);
-	pdev->dev.platform_data = NULL; /* This will avoid a crash on device release */
-	platform_device_unregister(pdev);
-	usb_host_pdev = NULL;
-}
-
-#ifdef CONFIG_USB_TEGRA_OTG
 static struct tegra_otg_platform_data tegra_otg_pdata = {
-	.host_register = &tegra_usb_otg_host_register,
-	.host_unregister = &tegra_usb_otg_host_unregister,
-};
-#endif
-
-
-static struct platform_device *smba_usb_devices[] __initdata = {
-#ifdef CONFIG_USB_TEGRA_OTG
-	/* OTG should be the first to be registered */
-	&tegra_otg_device,
-#endif
-	&tegra_udc_device, 		/* USB gadget */
-	&tegra_ehci3_device,
-};
-
-
-static void tegra_set_host_mode(void)
-{
-	/* Place interface in host mode	*/
-#ifdef CONFIG_USB_TEGRA_OTG
-
-	/* Switch to host mode */
-	tegra_otg_set_host_mode(true);
-	
-#else
-
-	if (!usb_host_pdev) {
-		usb_host_pdev = tegra_usb_otg_host_register();
-	}
-#endif
-
-}
-
-static void tegra_set_gadget_mode(void)
-{
-	/* Place interfase in gadget mode */
-
-#ifdef CONFIG_USB_TEGRA_OTG
-
-	/* Switch to peripheral mode */
-	tegra_otg_set_host_mode(false);
-
-#else
-	if (usb_host_pdev) {
-		tegra_usb_otg_host_unregister(usb_host_pdev);
-		usb_host_pdev = NULL;
-	}
-#endif
-}
-
-struct kobject *usb_kobj = NULL;
-
-static ssize_t usb_read(struct device *dev, struct device_attribute *attr,
-		       char *buf)
-{
-	int ret = 0;
-	
-	if (!strcmp(attr->attr.name, "host_mode")) {
-		if (usb_host_pdev)
-			ret = 1;
-	}
-
-	return strlcpy(buf, ret ? "1\n" : "0\n", 3);
-}
-
-static ssize_t usb_write(struct device *dev, struct device_attribute *attr,
-			const char *buf, size_t count)
-{
-	unsigned long on = simple_strtoul(buf, NULL, 10);
-
-	if (!strcmp(attr->attr.name, "host_mode")) {
-		if (on)
-			tegra_set_host_mode();
-		else
-			tegra_set_gadget_mode();
-	} 
-
-	return count;
-}
-
-static DEVICE_ATTR(host_mode, 0666, usb_read, usb_write); /* Allow everybody to switch mode */
-
-static struct attribute *usb_sysfs_entries[] = {
-	&dev_attr_host_mode.attr,
-	NULL
-};
-
-static struct attribute_group usb_attr_group = {
-	.name	= NULL,
-	.attrs	= usb_sysfs_entries,
+	.ehci_device = &tegra_ehci1_device,
+	.ehci_pdata = &tegra_ehci_pdata[0],
 }; 
 
-#endif
+static void smba_usb_init(void)
+	{
+        tegra_usb_phy_init(tegra_usb_phy_pdata, ARRAY_SIZE(tegra_usb_phy_pdata));
+        /* OTG should be the first to be registered */
+        tegra_otg_device.dev.platform_data = &tegra_otg_pdata;
+	platform_device_register(&tegra_otg_device);
 
-static void  __iomem *rst_device_reg = IO_ADDRESS(TEGRA_CLK_RESET_BASE);
+	platform_device_register(&tegra_udc_device);
+
+//	tegra_ehci2_device.dev.platform_data = &tegra_ehci_pdata[1];
+//	platform_device_register(&tegra_ehci2_device);
+	
+	tegra_ehci3_device.dev.platform_data = &tegra_ehci_pdata[1];
+	platform_device_register(&tegra_ehci3_device);
+};
 
 int __init smba_usb_register_devices(void)
 {
-#ifdef CONFIG_USB_SUPPORT
-	int ret;
-	
-  /* USB Plugged in on boot device hang fix */
-  writel(1 << SET_USBD_RST, (u32)rst_device_reg + CLK_RST_CONTROLLER_RST_DEV_L_SET_0);
-  udelay(5);
-  writel(1 << CLR_USBD_RST, (u32)rst_device_reg + CLK_RST_CONTROLLER_RST_DEV_L_CLR_0);
-
-	tegra_ehci1_device.dev.platform_data = &tegra_ehci_pdata[0];
-	tegra_ehci3_device.dev.platform_data = &tegra_ehci_pdata[1];
-#ifdef CONFIG_USB_TEGRA_OTG
-	tegra_otg_device.dev.platform_data = &tegra_otg_pdata;
-#endif
-
-	/* If in host mode, set VBUS to 1 */
-	gpio_request(SMBA1002_USB0_VBUS, "USB0 VBUS"); /* VBUS switch, perhaps ? -- Tied to what? -- should require +5v ... */
-	
-	/* 0 = Gadget */
-	gpio_direction_output(SMBA1002_USB0_VBUS, 0 ); /* Gadget */
-	
-	ret = platform_add_devices(smba_usb_devices, ARRAY_SIZE(smba_usb_devices));
-	if (ret)
-		return ret;
-
-	/* Enable gadget mode by default */
-	tegra_set_gadget_mode();
-		
-	/* Register a sysfs interface to let user switch modes */
-	usb_kobj = kobject_create_and_add("usbbus", NULL);
-	if (!usb_kobj) {
-		pr_err("Unable to register USB mode switch");
-		return 0;	
-	}
-	
-	
-	/* Attach an attribute to the already registered usbbus to let the user switch usb modes */
-	return sysfs_create_group(usb_kobj, &usb_attr_group); 
-#else
+	smba_usb_init();
 	return 0;
-#endif	
 }
+
+

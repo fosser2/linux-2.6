@@ -685,7 +685,6 @@ static void __init tegra_setup_reboot(void)
 
 
 
-#if LINUX_VERSION_CODE == KERNEL_VERSION(2,6,39) || LINUX_VERSION_CODE < KERNEL_VERSION(2,6,38)
 /* missing from defines ... remove ASAP when defined in devices.c */
 static struct resource tegra_rtc_resources[] = {
 	[0] = {
@@ -706,7 +705,6 @@ struct platform_device tegra_rtc_device = {
 	.resource	= tegra_rtc_resources,
 	.num_resources	= ARRAY_SIZE(tegra_rtc_resources),
 };
-#endif
 
 static struct platform_device *smba_power_devices[] __initdata = {
 	//&adam_ldo_tps2051B_reg_device,
