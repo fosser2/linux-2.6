@@ -245,7 +245,7 @@ static struct regulator_consumer_supply fixed_vdd_aon_supply[] = {
 };
 
 
-#define ADJ_REGULATOR_INIT(_id, _minmv, _maxmv, _aon, _bon)	\
+#define ADJ_REGULATOR_INIT(_id, _minmv, _maxmv, _aon, _bon, config)	\
 	{													\
 		.constraints = {								\
 			.name = "tps658621_" #_id,					\
@@ -261,6 +261,7 @@ static struct regulator_consumer_supply fixed_vdd_aon_supply[] = {
 			},											\
 			.num_consumer_supplies = ARRAY_SIZE(tps658621_##_id##_supply),\
 		.consumer_supplies = tps658621_##_id##_supply,	\
+		.driver_data = config,							\
 	}
 
 #define FIXED_REGULATOR_INIT(_id, _mv, _aon, _bon)		\
@@ -278,46 +279,62 @@ static struct regulator_consumer_supply fixed_vdd_aon_supply[] = {
 		.consumer_supplies = fixed_##_id##_supply,		\
 	}
 
+static struct tps6586x_settings sm0_config = {
+	.sm_pwm_mode = PWM_DEFAULT_VALUE,
+	.slew_rate = SLEW_RATE_3520UV_PER_SEC,
+};
+
+static struct tps6586x_settings sm1_config = {
+	/*
+	 * Current TPS6586x is known for having a voltage glitch if current load
+	 * changes from low to high in auto PWM/PFM mode for CPU's Vdd line.
+	 */
+	.sm_pwm_mode = PWM_ONLY,
+	.slew_rate = SLEW_RATE_3520UV_PER_SEC,
+};
+ 
+#define ON	1
+#define OFF	0
 	
 static struct regulator_init_data sm0_data  		 
-	= ADJ_REGULATOR_INIT(sm0,  725, 1500, 1, 1); // 1200
+	= ADJ_REGULATOR_INIT(sm0,  725, 1500, ON, ON, &sm0_config); // 1200
 static struct regulator_init_data sm1_data  		 
-	= ADJ_REGULATOR_INIT(sm1,  725, 1500, 1, 1); // 1000 (min was 1100)
+	= ADJ_REGULATOR_INIT(sm1,  725, 1500, ON, ON, &sm1_config); // 1000 (min was 1100)
 static struct regulator_init_data sm2_data  		 
-	= ADJ_REGULATOR_INIT(sm2, 3000, 4550, 1, 1); // 3700
+	= ADJ_REGULATOR_INIT(sm2, 3000, 4550, ON, ON, NULL); // 3700
 static struct regulator_init_data ldo0_data 		 
-	= ADJ_REGULATOR_INIT(ldo0,1250, 3300, 0, 0); // 3300
+	= ADJ_REGULATOR_INIT(ldo0,1250, 3350,OFF,OFF, NULL); // 3300 
 static struct regulator_init_data ldo1_data 		 
-	= ADJ_REGULATOR_INIT(ldo1, 725, 1500, 1, 1); // 1100  V-1V2
+	= ADJ_REGULATOR_INIT(ldo1, 725, 1500, ON, ON, NULL); // 1100  V-1V2
 static struct regulator_init_data ldo2_data 		 
-	= ADJ_REGULATOR_INIT(ldo2, 725, 1500, 1, 1); // 1200  V-RTC
+	= ADJ_REGULATOR_INIT(ldo2, 725, 1500, ON, ON, NULL); // 1200  V-RTC
 static struct regulator_init_data ldo3_data 		 
-	= ADJ_REGULATOR_INIT(ldo3,1250, 3300, 0, 0); // 3300 
+	= ADJ_REGULATOR_INIT(ldo3,1250, 3350,OFF,OFF, NULL); // 3300 
 static struct regulator_init_data ldo4_data 		 
-	= ADJ_REGULATOR_INIT(ldo4,1700, 2000, 1, 1); // 1800
+	= ADJ_REGULATOR_INIT(ldo4,1700, 2000, ON,OFF, NULL); // 1800
 static struct regulator_init_data ldo5_data 		 
-	= ADJ_REGULATOR_INIT(ldo5,1250, 3300, 1, 1); // 2850
+	= ADJ_REGULATOR_INIT(ldo5,1250, 3350, ON, ON, NULL); // 2850
 static struct regulator_init_data ldo6_data 		 
-	= ADJ_REGULATOR_INIT(ldo6,1250, 3300, 1, 1); // 2850  V-3V3 USB
+	= ADJ_REGULATOR_INIT(ldo6,1250, 3350, ON, ON, NULL); // 2850  V-3V3 USB
 static struct regulator_init_data ldo7_data 		 
-	= ADJ_REGULATOR_INIT(ldo7,1250, 3300, 0, 0); // 3300  V-SDIO
+	= ADJ_REGULATOR_INIT(ldo7,1250, 3350,OFF,OFF, NULL); // 3300  V-SDIO 
 static struct regulator_init_data ldo8_data 		 
-	= ADJ_REGULATOR_INIT(ldo8,1250, 3300, 0, 0); // 1800  V-2V8
+	= ADJ_REGULATOR_INIT(ldo8,1250, 3350,OFF,OFF, NULL); // 1800  V-2V8 
 static struct regulator_init_data ldo9_data 		 
-	= ADJ_REGULATOR_INIT(ldo9,1250, 3300, 1, 1); // 2850
+	= ADJ_REGULATOR_INIT(ldo9,1250, 3350, ON, ON, NULL); // 2850
 static struct regulator_init_data rtc_data  		 
-	= ADJ_REGULATOR_INIT(rtc, 1250, 3350, 1, 1); // 3300
+	= ADJ_REGULATOR_INIT(rtc, 1250, 3350, ON, ON, NULL); // 3300
 /*static struct regulator_init_data buck_data 
-	= ADJ_REGULATOR_INIT(buck,1250, 3350, 0, 0); // 3300*/
-
+	= ADJ_REGULATOR_INIT(buck,1250, 3350,OFF,OFF, NULL); // 3300*/
+	
 static struct regulator_init_data soc_data  		 
-	= ADJ_REGULATOR_INIT(soc, 1250, 3300, 1, 1);
-	static struct regulator_init_data ldo_tps74201_data  
-	= FIXED_REGULATOR_INIT(ldo_tps74201 , 1500, 0, 0 ); // 1500 (VDD1.5, enabled by PMU_GPIO[0] (0=enabled) - Turn it off as soon as we boot
+	= ADJ_REGULATOR_INIT(soc, 1250, 3300, ON, ON, NULL);
+static struct regulator_init_data ldo_tps74201_data  
+	= FIXED_REGULATOR_INIT(ldo_tps74201 , 1500,OFF, 0 ); // 1500 (VDD1.5, enabled by PMU_GPIO[0] (0=enabled) - Turn it off as soon as we boot
 static struct regulator_init_data buck_tps62290_data 
-	= FIXED_REGULATOR_INIT(buck_tps62290, 1050, 1, 1 ); // 1050 (VDD1.05, AVDD_PEX ... enabled by PMU_GPIO[2] (1=enabled)
+	= FIXED_REGULATOR_INIT(buck_tps62290, 1050, ON, 1 ); // 1050 (VDD1.05, AVDD_PEX ... enabled by PMU_GPIO[2] (1=enabled)
 static struct regulator_init_data ldo_tps72012_data  
-	= FIXED_REGULATOR_INIT(ldo_tps72012 , 1200, 0, 0 ); // 1200 (VDD1.2, VCORE_WIFI ...) enabled by PMU_GPIO[1] (1=enabled)
+	= FIXED_REGULATOR_INIT(ldo_tps72012 , 1200,OFF, 0 ); // 1200 (VDD1.2, VCORE_WIFI ...) enabled by PMU_GPIO[1] (1=enabled) 
 
 static struct regulator_init_data ldo_tps2051B_data  
 	= FIXED_REGULATOR_INIT(ldo_tps2051B , 5000, 1, 1 ); // 5000 (VDDIO_VID), enabled by AP_GPIO Port T, pin2, 
@@ -354,7 +371,9 @@ static struct regulator_init_data vdd_aon_data =
 		.enabled_at_boot= _atboot,					\
 		.init_data		= &_data,					\
 	}
-		//.set_as_input_to_enable = _itoen,			\
+		/*.set_as_input_to_enable = _itoen,*/		\
+		
+		
 /* The next 3 are fixed regulators controlled by PMU GPIOs */
 static struct fixed_voltage_config ldo_tps74201_cfg  
 	= FIXED_REGULATOR_CONFIG(ldo_tps74201  , 1500, PMU_GPIO0 , 0,0, 200000, 0, ldo_tps74201_data);
@@ -692,11 +711,7 @@ struct platform_device tegra_rtc_device = {
 static struct platform_device *smba_power_devices[] __initdata = {
 	//&adam_ldo_tps2051B_reg_device,
 	//&adam_vdd_aon_reg_device,
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,38)	
 	&tegra_pmu_device,
-#else
-	&pmu_device,
-#endif
 	//&smba_nvec_mfd,
 	&tegra_rtc_device,
 	//&smba_bq24610_device,
