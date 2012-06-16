@@ -31,6 +31,14 @@
 #define EXITSLREQ_BIT       BIT(1) /* Exit sleep mode request */
 #define SLEEP_MODE_BIT      BIT(3) /* Sleep mode */
 
+/* RGB1 control registers */
+#define TPS6586X_RGB1FLASH  0x50
+#define TPS6586X_RGB1RED    0x51
+#define TPS6586X_RGB1GREEN  0x52
+#define TPS6586X_RGB1BLUE   0x53
+#define DISABLE_FLASH_MODE  0xff
+#define TPS6586X_RGB1GREEN_BIT BIT(7)
+
 /* GPIO control registers */
 #define TPS6586X_GPIOSET1	0x5d
 #define TPS6586X_GPIOSET2	0x5e
@@ -256,19 +264,75 @@ out:
 EXPORT_SYMBOL_GPL(tps6586x_update);
 
 static struct i2c_client *tps6586x_i2c_client = NULL;
-static void tps6586x_power_off(void)
+int tps6586x_power_off(void)
 {
 	struct device *dev = NULL;
+	int ret = -EINVAL;
 
 	if (!tps6586x_i2c_client)
-		return;
+		return ret;
 
 	dev = &tps6586x_i2c_client->dev;
 
-	if (tps6586x_clr_bits(dev, TPS6586X_SUPPLYENE, EXITSLREQ_BIT))
-		return;
+	ret = tps6586x_clr_bits(dev, TPS6586X_SUPPLYENE, EXITSLREQ_BIT);
+	if (ret)
+		return ret;
 
-	tps6586x_set_bits(dev, TPS6586X_SUPPLYENE, SLEEP_MODE_BIT);
+	ret = tps6586x_set_bits(dev, TPS6586X_SUPPLYENE, SLEEP_MODE_BIT);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+int tps6586x_cancel_sleep(void)
+{
+	struct device *dev = NULL;
+	int ret = -EINVAL;
+
+	if (!tps6586x_i2c_client)
+		return ret;
+
+	dev = &tps6586x_i2c_client->dev;
+
+	ret = tps6586x_set_bits(dev, TPS6586X_SUPPLYENE, EXITSLREQ_BIT);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+int tps6586x_suspend_led(int enable)
+{
+   	struct device *dev = NULL;
+	int ret = -EINVAL;
+	uint8_t val;
+	if (!tps6586x_i2c_client)
+		goto fail;
+
+	dev = &tps6586x_i2c_client->dev;
+
+        if (tps6586x_write(dev,TPS6586X_RGB1FLASH,DISABLE_FLASH_MODE))
+		goto fail;
+
+	if ( tps6586x_read(dev,TPS6586X_RGB1GREEN,&val))
+		goto fail;
+
+        val |=0x0F;
+	if (tps6586x_write(dev,TPS6586X_RGB1GREEN,val))
+		goto fail;
+
+        if(enable){
+		ret = tps6586x_set_bits(dev, TPS6586X_RGB1GREEN,TPS6586X_RGB1GREEN_BIT);
+        }else {
+		ret = tps6586x_clr_bits(dev, TPS6586X_RGB1GREEN,TPS6586X_RGB1GREEN_BIT);
+        }
+        if (ret) 
+            goto fail;
+
+	return 0;
+fail:
+	return ret;
 }
 
 static int tps6586x_gpio_get(struct gpio_chip *gc, unsigned offset)
@@ -556,9 +620,6 @@ static int __devinit tps6586x_i2c_probe(struct i2c_client *client,
 		goto err_add_devs;
 	}
 
-	if (pdata->use_power_off && !pm_power_off)
-		pm_power_off = tps6586x_power_off;
-
 	tps6586x_i2c_client = client;
 
 	return 0;
@@ -605,6 +666,24 @@ static const struct i2c_device_id tps6586x_id_table[] = {
 };
 MODULE_DEVICE_TABLE(i2c, tps6586x_id_table);
 
+#ifdef CONFIG_PM
+static int tps6586x_suspend(struct i2c_client *client, pm_message_t mesg)
+{
+       if (client->irq)
+               disable_irq(client->irq);
+
+       return 0;
+}
+
+static int tps6586x_resume(struct i2c_client *client)
+{
+       if (client->irq)
+               enable_irq(client->irq);
+
+       return 0;
+}
+#endif
+
 static struct i2c_driver tps6586x_driver = {
 	.driver	= {
 		.name	= "tps6586x",
@@ -613,6 +692,10 @@ static struct i2c_driver tps6586x_driver = {
 	.probe		= tps6586x_i2c_probe,
 	.remove		= __devexit_p(tps6586x_i2c_remove),
 	.id_table	= tps6586x_id_table,
+#ifdef CONFIG_PM
+       .suspend        = tps6586x_suspend,
+       .resume         = tps6586x_resume,
+#endif
 };
 
 static int __init tps6586x_init(void)

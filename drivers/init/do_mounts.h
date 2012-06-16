@@ -74,4 +74,3 @@ void md_run_setup(void);
 static inline void md_run_setup(void) {}
 
 #endif
-

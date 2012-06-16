@@ -124,4 +124,3 @@ int __init initrd_load(void)
 	sys_unlink("/initrd.image");
 	return 0;
 }
-

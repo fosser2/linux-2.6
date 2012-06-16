@@ -17,7 +17,7 @@ else
 obj-y                                   += tegra3_clocks.o
 obj-y                                   += timer-t3.o
 endif
-obj-y                                   += gpio.o
+#obj-y                                   += gpio.o
 obj-y                                   += pinmux.o
 obj-y                                   += devices.o
 obj-y                                   += delay.o
