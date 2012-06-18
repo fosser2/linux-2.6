@@ -25,6 +25,8 @@ struct tegra_sdhci_platform_data {
 	int wp_gpio;
 	int power_gpio;
 	int is_8bit;
+	int pm_flags;
+	int pm_caps;
 	int has_no_vreg;      /* 1=No voltage regulator */
 	unsigned int max_clk_limit;
 	unsigned int tap_delay;
