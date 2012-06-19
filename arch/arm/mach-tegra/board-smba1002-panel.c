@@ -1,5 +1,5 @@
 /*
- * arch/arm/mach-tegra/board-smba1002-gpu.c
+ * arch/arm/mach-tegra/board-smba1002-panel.c
  *
  * Copyright (C) 2011 Eduardo José Tagle <ejtagle@tutopia.com>
  * Copyright (C) 2011 Jens Andersen <jens.andersen@gmail.com>
