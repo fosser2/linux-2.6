@@ -1,3 +1,4 @@
+
 #include <linux/kernel.h>
 #include <linux/fs.h>
 #include <linux/minix_fs.h>
@@ -324,4 +325,3 @@ static int __init crd_load(int in_fd, int out_fd, decompress_fn deco)
 		result = 1;
 	return result;
 }
-

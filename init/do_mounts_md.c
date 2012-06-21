@@ -300,4 +300,3 @@ void __init md_run_setup(void)
 		autodetect_raid();
 	md_setup_drive();
 }
-

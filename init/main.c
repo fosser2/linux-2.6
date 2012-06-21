@@ -844,4 +844,3 @@ static int __init kernel_init(void * unused)
 	init_post();
 	return 0;
 }
-
