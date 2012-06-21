@@ -1414,4 +1414,3 @@ config PADATA
 	bool
 
 source "kernel/Kconfig.locks"
-
