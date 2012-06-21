@@ -145,11 +145,18 @@ static struct tegra_otg_platform_data tegra_otg_pdata = {
 	.ehci_pdata = &tegra_ehci_pdata[0],
 }; 
 
+static void  __iomem *rst_device_reg = IO_ADDRESS(TEGRA_CLK_RESET_BASE);
+
 static void smba_usb_init(void)
 	{
-        tegra_usb_phy_init(tegra_usb_phy_pdata, ARRAY_SIZE(tegra_usb_phy_pdata));
-        /* OTG should be the first to be registered */
-        tegra_otg_device.dev.platform_data = &tegra_otg_pdata;
+  /* USB Plugged in on boot device hang fix */
+  writel(1 << SET_USBD_RST, (u32)rst_device_reg + CLK_RST_CONTROLLER_RST_DEV_L_SET_0);
+  udelay(5);
+  writel(1 << CLR_USBD_RST, (u32)rst_device_reg + CLK_RST_CONTROLLER_RST_DEV_L_CLR_0);
+
+  tegra_usb_phy_init(tegra_usb_phy_pdata, ARRAY_SIZE(tegra_usb_phy_pdata));
+  /* OTG should be the first to be registered */
+  tegra_otg_device.dev.platform_data = &tegra_otg_pdata;
 	platform_device_register(&tegra_otg_device);
 
 	platform_device_register(&tegra_udc_device);
