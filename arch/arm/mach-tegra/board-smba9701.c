@@ -687,9 +687,6 @@ static void __init tegra_smba_init(void)
 	/* Register SPI devices */
 	smba_spi_register_devices();
 
-	/* Register GPU devices */
-	smba_gpu_register_devices();
-
 	/* Register Audio devices */
 	smba_audio_register_devices();
 
